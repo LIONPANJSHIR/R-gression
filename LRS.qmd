@@ -1,0 +1,8 @@
+---
+title: "régression linéaire simple"
+author: "Ly Amadou"
+format: html
+editor: visual
+---
+
+k,d

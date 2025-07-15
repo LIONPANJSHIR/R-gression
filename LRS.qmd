@@ -1,0 +1,175 @@
+---
+title: "régression linéaire simple"
+author: "Ly Amadou"
+format: html
+editor: visual
+---
+
+```{r}
+data =read.table("C:/data_analysis/ML/Regression/data/ozone_simple.txt" , h=TRUE , sep=";")
+```
+
+```{r,message=F}
+library(ggplot2)
+library(dplyr)
+library(kableExtra)
+library(reactable)
+library(pander)
+library(hrbrthemes)
+```
+
+```{r}
+kbl(head(data) ,
+    caption = "Les 5 premières observations") |> 
+ kable_styling() 
+```
+
+```{r}
+data |> ggplot(aes(x=T12 , y =O3))+
+ geom_point()+
+ hrbrthemes::theme_ipsum(base_family = "serif" , plot_title_size = 10 , subtitle_size = 8 )+
+ labs(title = "50 données journalière des températures a midi ",
+ subtitle="en fonction de la concentration de l'ozone")+
+ theme(plot.subtitle = element_text(colour = "red4"))
+```
+
+Nous allons essayer d'essayer d'estimer les paramètres $\hat\beta_0$ et $\hat\beta_1$ de la régression linéaire simple
+
+-   Ont sait que da,s la regression lineaire simple ont a l'equation suivante $Y _i= \beta_0 + \beta_1 X_i + \epsilon$
+-   Ont cherche a estimer Y par $\hat Y = \hat\beta_0 + \hat\beta_1 X$ avec :
+
+$$
+\begin{aligned}
+\hat\beta_1 &= \frac{ \sum_{i=1}^{n} y_i (x_i - \bar{x}) }{ \sum_{i=1}^{n}(x_i - \bar{x})^2 } \\
+\hat\beta_0 &= \bar{y} - \hat\beta_1 \bar{x} \\[1.2em]
+\text{où} \quad 
+\bar{y} &= \frac{1}{n} \sum_{i=1}^{n} y_i, 
+\quad\bar{x} = \frac{1}{n} \sum_{i=1}^{n} x_i
+\end{aligned}
+$$
+
+Ici nous cherchons a estimer la concentration en ozone donc la variable cible y est **O3** et la variable explicative est la température a 12h donc x c'est la variable **T12**
+
+```{r}
+x <- data$T12
+y <- data$O3
+
+```
+
+```{r}
+ n= nrow(data) # taille de l'échantillons 
+y_bar = (1/n)*(sum(y) )# moyenne de la concentration en ozone 
+# y_bar == mean(data$O3) # Verifications
+x_bar =  (1/n)*(sum(x)) # Température moyenne a 12h
+
+
+cat("La taille de l'échantillons est de " , n ,
+    "\nLa température moyenne a 12h est de ",x_bar ,"°",
+    "\nLa concentrations moyenne en O3 est de ",y_bar)
+```
+
+Dans la suite de la démonstrations ont pose :
+
+-   $S_{xx} = \sum_{i = 1}^{n}{(\bar{x} - x_i)^2}$
+-   $S_{xy} = \sum_{i = 1}^{n}{y_i(\bar{x} - x_i)^2} == \sum_{i = 1}^{n}{(y_i - \bar y)(\bar{x} - x_i)^2}$
+
+```{r}
+
+Sxx <- sum((x - x_bar)^2)
+Sxy <- sum((x - x_bar) * (y - y_bar))
+
+
+Sxx ; Sxy
+```
+
+```{r}
+beta_1 = Sxy / Sxx
+beta_0 = y_bar - x_bar*beta_1
+
+beta_1 ; beta_0
+```
+
+$\hat \beta_0 = 2.70  \\ \hat \beta_1 = 31.415$
+
+Comment l'interprété ?
+
+>  Le coefficient $\hat{\beta}_0 = 2.70$ représente la concentration d’ozone estimée lorsque la température à midi est de 0°C.\
+> Le coefficient $\hat{\beta}_1 = 31.415$ signifie qu’en moyenne, une augmentation de 1°C de la température à midi est associée à une augmentation de **31.415 unités** de la concentration d’ozone.
+
+::: {.callout-note appearance="minimal"}
+En pratique, **0°C** peut être **hors du domaine réel des données**, donc cette interprétation **n’a pas forcément de sens physique** — **mais mathématiquement elle est correcte**
+:::
+
+Maintenant qu'on a une estimation de la droite nous allons modélisé les erreurs commise par le modéle :
+
+$$
+\epsilon_i = Y_i -\hat Y_i
+$$
+
+```{r}
+#| tbl-cap-location: bottom
+y_hat = beta_0 + beta_1*x
+Result = cbind(y,y_hat) |> as.data.frame()
+
+knitr::kable(head(Result,10),
+    caption = "Résultats de la prédiction ") 
+
+# palettes = c("#C0AED9FF", "#3C3B6CFF", "#AE56DEFF", "#94A4ACFF", "#8C37E5FF", "#000000FF")
+```
+
+```{r}
+Result = Result |> mutate(
+residus = y -y_hat
+) |>
+ arrange(residus)
+
+
+Result |> 
+ kable(caption ="Les résidus du modéle " ) |> 
+ column_spec(column = 3 , background = "#C0AED9FF")
+
+
+```
+
+On sait que d'après les propriété de l’estimation par la MCO les estimateur \$\\beta_0 , \\beta_1 \$ sont sans biais calculons maintenant la variance associé a ces paramètre
+
+$$
+\begin{align} \\
+V(\hat B_0) &= \frac{\sigma^2 \sum_i xi^2}{n \ S_{xx}}  \\
+V(\hat\beta_1) &= \frac{\sigma^2 }{S_{xx}} \\
+Cov (\hat\beta_0 ,\hat\beta_1 ) & = - \frac{\sigma^2 \bar x }{S_{xx}}  
+\end{align}
+$$
+
+Cependant la variance $\sigma^2$ n'est pas toujours connue nous l'estimons par $\hat\sigma^2 = \frac{\sum \epsilon^2}{n-2}$
+
+```{r}
+sigma2_hat <- sum(Result$residus^2) / (n - 2)
+```
+
+```{r}
+Var_beta_0 = ((sigma2_hat)*sum(x**2))/(n*Sxx)
+sqrt(Var_beta_0)
+```
+
+```{r}
+Var_beta_1 = (sigma2_hat)/(Sxx)
+sqrt(Var_beta_1)
+```
+
+```{r}
+reg = lm(O3 ~ T12 , data =data)
+summary(reg)
+
+```
+
+```{r}
+plot(O3 ~T12 , data = data)
+T12 = seq(min(data[,"T12"] ), max(data[,"T12"]) , length = 100)
+grille = data.frame(T12)
+Icdte = predict(reg , new =grille , interval ='conf' , level =0.96)
+matlines(grille$T12 ,
+         cbind(Icdte) , 
+         lty = c(1,2,2) ,
+         col = c(1,2,2,1))
+```
